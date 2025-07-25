@@ -2,10 +2,13 @@ package com.java.authentication.springbootauthentication.services.implementation
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.java.authentication.springbootauthentication.dto.loginDto;
+import com.java.authentication.springbootauthentication.dto.lrespDto;
 import com.java.authentication.springbootauthentication.dto.signupDto;
 import com.java.authentication.springbootauthentication.entity.UserEntity;
 import com.java.authentication.springbootauthentication.repository.userRepo;
@@ -21,9 +24,11 @@ public class userServImpl implements userService{
     private final JWTService jwtService;
 
 
-    public userServImpl(userRepo userrepo, PasswordEncoder p1){
+    public userServImpl(userRepo userrepo, PasswordEncoder p1, AuthenticationManager am, JWTService jw){
         this.userRepo=userrepo;
         this.passwordEncoder=p1;
+        this.authenticationManager=am;
+        this.jwtService=jw;
     }
 
     public signupDto signup(signupDto user){
@@ -45,11 +50,23 @@ public class userServImpl implements userService{
         return new signupDto(create.getName(),create.getEmail(),create.getPassword());
     }
 
-    public signupDto login(loginDto user){
-        UserEntity findUser=userRepo.findByEmail(user.getEmail());
+    public lrespDto login(loginDto user){
+    System.out.println("Step 1: Finding user");
+    UserEntity findUser = userRepo.findByEmail(user.getEmail());
 
-        System.out.println("from login user find result"+ findUser);
+    System.out.println("Step 2: Authenticating");
+    Authentication authentication = authenticationManager.authenticate(
+        new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
+    );
 
-        return null;
-    }
+    System.out.println("Step 3: Getting principal");
+    CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+    UserEntity user1 = userDetails.getUserEntity();
+
+    System.out.println("Step 4: Creating token");
+    String token = jwtService.createToken(user1);
+
+    System.out.println("Step 5: Returning response");
+    return new lrespDto(findUser.getName(), findUser.getEmail(), token);
+}
 }
